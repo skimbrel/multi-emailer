@@ -1,4 +1,5 @@
 config.yml
+local.yml
 releases
 app.yaml
 /*.pem
