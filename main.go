@@ -11,6 +11,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -35,6 +36,7 @@ import (
 	"github.com/kevinburke/multi-emailer/assets"
 	"github.com/kevinburke/rest"
 	gmail "google.golang.org/api/gmail/v1"
+	"cloud.google.com/go/datastore"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -51,6 +53,8 @@ var validIDRx = regexp.MustCompile(fmt.Sprintf(`^%s$`, idRxPart))
 var logger log.Logger
 
 var homepageTpl *template.Template
+
+var dsClient datastore.Client
 
 func init() {
 	logger = handlers.Logger
@@ -262,6 +266,8 @@ type FileConfig struct {
 	HTTPOnly       bool           `yaml:"http_only"`
 	GoogleClientID string         `yaml:"google_client_id"`
 	GoogleSecret   string         `yaml:"google_secret"`
+	// App Engine Project ID to initialize Cloud Datastore
+	ProjectID      string         `yaml:"google_project_id"`
 	Groups         []*ConfigGroup `yaml:"groups"`
 	Port           *int           `yaml:"port"`
 	Title          string         `yaml:"title"`
@@ -315,6 +321,15 @@ func validID(id string) bool {
 	return validIDRx.MatchString(id)
 }
 
+func initDatastore(projectId string) (*datastore.Client, error) {
+	ctx := context.Background()
+	client, err := datastore.NewClient(ctx, projectId)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
 func commonMain() (*FileConfig, http.Handler) {
 	flag.Parse()
 	if flag.NArg() > 2 {
@@ -337,6 +352,13 @@ func commonMain() (*FileConfig, http.Handler) {
 		logger.Error("Error getting secret key", "err", err)
 		os.Exit(2)
 	}
+
+	db, err := initDatastore(c.ProjectID)
+	if err != nil {
+		logger.Error("Error initializing Cloud Datastore", "err", err)
+		os.Exit(2)
+	}
+
 	m := &Mailer{Groups: make(map[string]*Group), Logger: logger, secretKey: key}
 	for _, group := range c.Groups {
 		if group.ID == "" {
