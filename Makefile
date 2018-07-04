@@ -49,7 +49,7 @@ ifndef config
 endif
 	$(GOPATH)/bin/multi-emailer --config=$(config)
 
-serve-local: | $(GOPATH)/bin/multi-emailer
+serve-local: | $(GOPATH)/bin/multi-emailer leaf.key leaf.pem
 	$(MAKE) serve config=local.yml
 
 watch-local: | $(GOPATH)/bin/multi-emailer leaf.key leaf.pem
